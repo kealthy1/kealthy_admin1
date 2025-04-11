@@ -6,32 +6,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:kealthy_admin/view/excel_upload.dart';
+import 'package:kealthy_admin/view/list_notifier.dart';
 import 'package:kealthy_admin/view/yesno.dart';
 import 'package:kealthy_admin/widgets/array_textfield.dart';
 import 'package:kealthy_admin/widgets/custom_dropdown.dart';
 import 'package:kealthy_admin/widgets/custom_textfield.dart';
 import 'package:lottie/lottie.dart';
+import 'package:image/image.dart' as img;
 
-class ListNotifier extends StateNotifier<List<String>> {
-  ListNotifier() : super([]);
-
-  void addItem(String item) {
-    state = [...state, item];
-    print("Micronutrient Added: $item");
-    print("Current Micronutrients: $state");
-  }
-
-  void removeItem(int index) {
-    state = [...state]..removeAt(index);
-  }
-}
-
-// Providers for Ingredients and Micro-nutrients
-final ingredientsProvider =
-    StateNotifierProvider<ListNotifier, List<String>>((ref) => ListNotifier());
-
-final microNutrientsProvider =
-    StateNotifierProvider<ListNotifier, List<String>>((ref) => ListNotifier());
+// // Providers for Ingredients and Micro-nutrients
+// final ingredientsProvider =
+//     StateNotifierProvider<ListNotifier, List<String>>((ref) => ListNotifier());
 
 class ProductImageNotifier extends StateNotifier<List<Uint8List?>> {
   ProductImageNotifier() : super(List.filled(4, null));
@@ -95,22 +80,50 @@ class _AddProductState extends ConsumerState<AddProduct> {
   final TextEditingController _unsaturatedFatController =
       TextEditingController();
   final TextEditingController _cholesterolController = TextEditingController();
+  final TextEditingController _caffeinController = TextEditingController();
+  final TextEditingController _sodiumController = TextEditingController();
+  final TextEditingController _ironController = TextEditingController();
+  final TextEditingController _calciumController = TextEditingController();
+  final TextEditingController _copperController = TextEditingController();
+  final TextEditingController _magnesiumController = TextEditingController();
+  final TextEditingController _phosphorusController = TextEditingController();
+  final TextEditingController _potassiumController = TextEditingController();
+  final TextEditingController _zincController = TextEditingController();
+  final TextEditingController _manganeseController = TextEditingController();
+  final TextEditingController _seleniumController = TextEditingController();
+  final TextEditingController _vitaminB2Controller = TextEditingController();
+  final TextEditingController _vitaminB6Controller = TextEditingController();
+  final TextEditingController _vitaminAController = TextEditingController();
   final TextEditingController _whatIsItController = TextEditingController();
   final TextEditingController _whatIsItUsedForController =
       TextEditingController();
-      final TextEditingController _kealthyscoreController =
+  final TextEditingController _kealthyscoreController = TextEditingController();
+  final TextEditingController _sohController = TextEditingController();
+  final TextEditingController _priceController = TextEditingController();
+
+  final TextEditingController _manufacturerAddressController =
       TextEditingController();
-      final TextEditingController _hsnController =
-      TextEditingController();
-      final TextEditingController _priceController =
+  final TextEditingController _eanController = TextEditingController();
+  final TextEditingController _importedByController = TextEditingController(
+      text:
+          'COTOLORE ENTERPRISES LLP15/293-C, Muriyankara - Pinarmunda RoadPeringala, Ernakulam - 683565');
+  final TextEditingController _originController =
+      TextEditingController(text: 'India');
+  final TextEditingController _manufacturedDateController =
+      TextEditingController(text: 'NIL');
+  final TextEditingController _expiryController = TextEditingController(text: ' NIL');
+  final TextEditingController _bestBeforeController = TextEditingController();
+  final TextEditingController _typeController = TextEditingController();
+  final TextEditingController _servingSizeController = TextEditingController();
+  final TextEditingController _scoredBasedOnController =
       TextEditingController();
 
 // State management for list-based data (ingredients and micronutrients)
   final ingredientsProvider = StateNotifierProvider<ListNotifier, List<String>>(
       (ref) => ListNotifier());
-  final microNutrientsProvider =
-      StateNotifierProvider<ListNotifier, List<String>>(
-          (ref) => ListNotifier());
+
+  final fssaiProvider = StateNotifierProvider<ListNotifier, List<String>>(
+      (ref) => ListNotifier());
 
 // Boolean properties managed by Riverpod StateProvider
   final _organicProvider = StateProvider<String>((ref) => '');
@@ -154,105 +167,151 @@ class _AddProductState extends ConsumerState<AddProduct> {
 
   // State for file upload
 
+  Future<Uint8List> compressImage(Uint8List originalBytes,
+      {int maxSizeInKB = 200}) async {
+    // Decode image
+    img.Image? image = img.decodeImage(originalBytes);
+    if (image == null) return originalBytes;
+
+    // Start compression loop
+    int quality = 90;
+    Uint8List? compressedBytes;
+    do {
+      compressedBytes =
+          Uint8List.fromList(img.encodeJpg(image, quality: quality));
+      quality -= 10;
+    } while (
+        compressedBytes.lengthInBytes > maxSizeInKB * 1024 && quality > 10);
+
+    return compressedBytes;
+  }
+
   // Upload images to Firebase Storage and return their URLs
   // Upload images to Firebase Storage and return their URLs
   Future<List<String>> _uploadImages() async {
     List<String> imageUrls = [];
     for (int i = 0; i < _selectedImages.length; i++) {
       if (_selectedImages[i] != null) {
+        // Compress the image before uploading
+        Uint8List compressedImage = await compressImage(_selectedImages[i]!);
+
         String fileName =
             'product_image_${DateTime.now().millisecondsSinceEpoch}_$i';
         Reference ref =
             FirebaseStorage.instance.ref().child('product_images/$fileName');
         UploadTask uploadTask = ref.putData(
-            _selectedImages[i]!, SettableMetadata(contentType: 'image/jpeg'));
+          compressedImage,
+          SettableMetadata(contentType: 'image/jpeg'),
+        );
+
         TaskSnapshot snapshot = await uploadTask;
         String downloadUrl = await snapshot.ref.getDownloadURL();
         imageUrls.add(downloadUrl);
-        print(downloadUrl);
       }
     }
     return imageUrls;
   }
 
   Future<void> _addProductToFirebase(WidgetRef ref) async {
-    ref.read(loadingProvider.notifier).state = true;
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const AlertDialog(
+        content: SizedBox(
+          height: 80,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 12),
+              Text('Uploading...', textAlign: TextAlign.center),
+            ],
+          ),
+        ),
+      ),
+    );
 
-    // Fetch the latest state explicitly
-    final micronutrients =
-        ref.read(microNutrientsProvider); // Ensure this is fresh
-    final ingredients = ref.read(ingredientsProvider);
-
-    print("Micronutrients in productData before saving: $micronutrients");
-    print("Ingredients in productData before saving: $ingredients");
-
-    // Validate inputs
-    if (micronutrients.isEmpty) {
-      Fluttertoast.showToast(
-        msg: "Please add at least one micronutrient",
-        toastLength: Toast.LENGTH_SHORT,
-        gravity: ToastGravity.BOTTOM,
-        backgroundColor: Colors.red,
-        textColor: Colors.white,
-        fontSize: 16.0,
-      );
-      return;
-    }
-
-    List<String> imageUrls = await _uploadImages();
-
-    final productData = {
-      "Product Code": _productCodeController.text,
-      "Vendor Name": _vendorNameController.text,
-      "Brand Name": _brandNameController.text,
-      "Product Name": _productNameController.text,
-      "Category": _categoryController.text,
-      "Sub-Category": _subCategoryController.text,
-      "Net Quantity": _netQuantityController.text,
-      "Ingredients": ingredients, // Read from the updated provider state
-      "Energy (kcal)": double.tryParse(_energyController.text) ?? 0.0,
-      "Protein (g)": double.tryParse(_proteinController.text) ?? 0.0,
-      "Total Carbohydrates (g)":
-          double.tryParse(_carbohydratesController.text) ?? 0.0,
-      "Sugars (g)": double.tryParse(_sugarsController.text) ?? 0.0,
-      "Added Sugars (g)": double.tryParse(_addedSugarsController.text) ?? 0.0,
-      "Dietary Fiber (g)": double.tryParse(_dietaryFiberController.text) ?? 0.0,
-      "Total Fat (g)": double.tryParse(_totalFatController.text) ?? 0.0,
-      "Trans Fat (g)": double.tryParse(_transFatController.text) ?? 0.0,
-      "Saturated Fat (g)": double.tryParse(_saturatedFatController.text) ?? 0.0,
-      "Unsaturated Fat (g)":
-          double.tryParse(_unsaturatedFatController.text) ?? 0.0,
-      "Cholesterol (mg)": double.tryParse(_cholesterolController.text) ?? 0.0,
-      "Micronutrients": micronutrients, // Read from the updated provider state
-      "Organic": ref.read(_organicProvider),
-      "Additives/Preservatives": ref.read(_additivesProvider),
-      "Artificial Sweeteners/Colors": ref.read(_artificialSweetenersProvider),
-      "Gluten-free": ref.read(_glutenFreeProvider),
-      "Vegan-Friendly": ref.read(_veganFriendlyProvider),
-      "Keto Friendly": ref.read(_ketoFriendlyProvider),
-      "Low GI": ref.read(_lowGIProvider),
-      "Low Sugar (less than 5g per serving)": ref.read(_lowSugarProvider),
-      "Eco-Friendly": ref.read(_ecoFriendlyProvider),
-      "Recyclable Packaging": ref.read(_recyclablePackagingProvider),
-      "What is it?": _whatIsItController.text,
-      "What is it used for?": _whatIsItUsedForController.text,
-      "ImageUrls": imageUrls,
-      "timestamp": FieldValue.serverTimestamp(),
-      "Kealthy Score":double.tryParse(_kealthyscoreController.text) ?? 0.0,
-      "HSN":double.tryParse(_hsnController.text) ?? 0.0,
-      "Price": double.tryParse(_priceController.text) ?? 0.0,
-    };
-
-    print("Final Product Data: $productData");
-
-    // Save to Firestore
     try {
+      ref.read(loadingProvider.notifier).state = true;
+
+      final ingredients = ref.read(ingredientsProvider);
+      final fssai = ref.read(fssaiProvider);
+      List<String> imageUrls = await _uploadImages();
+
+      final productData = {
+        // 🔹 Strings
+        "Product Code": _productCodeController.text,
+        "Vendor Name": _vendorNameController.text,
+        "Brand Name": _brandNameController.text,
+        "Name": _productNameController.text,
+        "Category": _categoryController.text,
+        "Subcategory": _subCategoryController.text,
+        "Qty": _netQuantityController.text,
+        "Manufacturer Address": _manufacturerAddressController.text,
+        "EAN": _eanController.text,
+        "Imported&Marketed By": _importedByController.text,
+        "Orgin": _originController.text,
+        "Manufactured date": _manufacturedDateController.text,
+        "Expiry": _expiryController.text,
+        "Best Before": _bestBeforeController.text,
+        "Type": _typeController.text,
+        "Serving size": _servingSizeController.text,
+        "Scored Based On": _scoredBasedOnController.text,
+        "What is it?": _whatIsItController.text,
+        "What is it used for?": _whatIsItUsedForController.text,
+        "Ingredients": ingredients, // List<String>
+        "FSSAI": fssai, // List<String>
+        "ImageUrl": imageUrls,
+        "Energy (kcal)": _energyController.text,
+        "Protein (g)": _proteinController.text,
+        "Total Carbohydrates (g)": _carbohydratesController.text,
+        "Sugars (g)": _sugarsController.text,
+        "Added Sugars (g)": _addedSugarsController.text,
+        "Dietary Fiber (g)": _dietaryFiberController.text,
+        "Total Fat (g)": _totalFatController.text,
+        "Trans Fat (g)": _transFatController.text,
+        "Saturated Fat (g)": _saturatedFatController.text,
+        "Unsaturated Fat (g)": _unsaturatedFatController.text,
+        "Cholesterol (mg)": _cholesterolController.text,
+        "Caffeine Content (mg)": _caffeinController.text,
+        "Sodium (mg)": _sodiumController.text,
+        "Iron (mg)": _ironController.text,
+        "Calcium (mg)": _calciumController.text,
+        "Copper (mg)": _copperController.text,
+        "Magnesium (mg)": _magnesiumController.text,
+        "Phosphorus (mg)": _phosphorusController.text,
+        "Potassium (mg)": _potassiumController.text,
+        "Zinc (mg)": _zincController.text,
+        "Manganese (mg)": _manganeseController.text,
+        "Selenium (mcg)": _seleniumController.text,
+        "Vitamin B2": _vitaminB2Controller.text,
+        "Vitamin B6 (Pyridoxine)": _vitaminB6Controller.text,
+        "Vitamin A": _vitaminAController.text,
+        "Kealthy Score": double.tryParse(_kealthyscoreController.text) ?? 0.0,
+        "SOH": double.tryParse(_sohController.text) ?? 0.0,
+        "Price": double.tryParse(_priceController.text) ?? 0.0,
+        "Organic": ref.read(_organicProvider),
+        "Additives/Preservatives": ref.read(_additivesProvider),
+        "Artificial Sweeteners or Colors":
+            ref.read(_artificialSweetenersProvider),
+        "Gluten-free": ref.read(_glutenFreeProvider),
+        "Vegan-Friendly": ref.read(_veganFriendlyProvider),
+        "Keto Friendly": ref.read(_ketoFriendlyProvider),
+        "Low GI": ref.read(_lowGIProvider),
+        "Low Sugar (less than 5g per serving)": ref.read(_lowSugarProvider),
+        "Eco-Friendly": ref.read(_ecoFriendlyProvider),
+        "Recyclable Packaging": ref.read(_recyclablePackagingProvider),
+        "timestamp": FieldValue.serverTimestamp(),
+      };
+
       await FirebaseFirestore.instance.collection('Products').add(productData);
+
       ref.read(loadingProvider.notifier).state = false;
+      Navigator.of(context).pop(); // Dismiss loading dialog
 
       _clearFields(ref);
-
-      _showSuccessAnimation(context);
+      _showSuccessAnimation(context); // Optional success animation
 
       Fluttertoast.showToast(
         msg: "Product added successfully!",
@@ -264,7 +323,8 @@ class _AddProductState extends ConsumerState<AddProduct> {
       );
     } catch (e) {
       ref.read(loadingProvider.notifier).state = false;
-      print("Error saving product: $e");
+      Navigator.of(context).pop(); 
+
       Fluttertoast.showToast(
         msg: "Error adding product: $e",
         toastLength: Toast.LENGTH_SHORT,
@@ -295,17 +355,30 @@ class _AddProductState extends ConsumerState<AddProduct> {
     _saturatedFatController.clear();
     _unsaturatedFatController.clear();
     _cholesterolController.clear();
+    _caffeinController.clear();
+    _sodiumController.clear();
+    _calciumController.clear();
+    _copperController.clear();
+    _ironController.clear();
+    _magnesiumController.clear();
+    _manganeseController.clear();
+    _phosphorusController.clear();
+    _zincController.clear();
+    _seleniumController.clear();
+    _vitaminAController.clear();
+    _vitaminB2Controller.clear();
+    _vitaminB6Controller.clear();
+    _potassiumController.clear();
     _whatIsItController.clear();
     _whatIsItUsedForController.clear();
     _kealthyscoreController.clear();
-    _hsnController.clear();
+    _sohController.clear();
     _priceController.clear();
 
-    // Reset lists and images
-    // ignore: invalid_use_of_visible_for_testing_member, invalid_use_of_protected_member
-    ref.read(microNutrientsProvider.notifier).state = [];
     // ignore: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member
     ref.read(ingredientsProvider.notifier).state = [];
+    // ignore: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member
+    ref.read(fssaiProvider.notifier).state = [];
     // ignore: invalid_use_of_visible_for_testing_member, invalid_use_of_protected_member
     ref.read(productImageProvider.notifier).state = List.filled(4, null);
 
@@ -352,168 +425,76 @@ class _AddProductState extends ConsumerState<AddProduct> {
   }
 
   bool _validateFields() {
-  final images = ref.read(productImageProvider);
+    final images = ref.read(productImageProvider);
 
-  // Validate that all images are selected
-  for (int i = 0; i < images.length; i++) {
-    if (images[i] == null) {
-      _showToast("Please upload the ${_getImageLabel(i)} image");
+    // Validate that all images are selected
+    for (int i = 0; i < images.length; i++) {
+      if (images[i] == null) {
+        _showToast("Please upload the ${_getImageLabel(i)} image");
+        return false;
+      }
+    }
+
+    // Validate required string fields
+    final requiredFields = {
+      "Product Code": _productCodeController.text,
+      "Vendor Name": _vendorNameController.text,
+      "Brand Name": _brandNameController.text,
+      "Product Name": _productNameController.text,
+      "Category": _categoryController.text,
+      "Sub-Category": _subCategoryController.text,
+      "Net Quantity": _netQuantityController.text,
+      "Energy": _energyController.text,
+      "Protein": _proteinController.text,
+      "Carbohydrates": _carbohydratesController.text,
+      "Sugars": _sugarsController.text,
+      "Added Sugars": _addedSugarsController.text,
+      "Dietary Fiber": _dietaryFiberController.text,
+      "Total Fat": _totalFatController.text,
+      "Trans Fat": _transFatController.text,
+      "Saturated Fat": _saturatedFatController.text,
+      "Unsaturated Fat": _unsaturatedFatController.text,
+      "Cholesterol": _cholesterolController.text,
+      "Caffein": _caffeinController.text,
+      "EAN": _eanController.text,
+      "Expiry": _expiryController.text,
+      "Best Before": _bestBeforeController.text,
+      "Type": _typeController.text,
+      "Serving size": _servingSizeController.text,
+    };
+
+    for (var entry in requiredFields.entries) {
+      if (entry.value.isEmpty) {
+        _showToast("Please enter the ${entry.key} value");
+        return false;
+      }
+    }
+
+    if (_sohController.text.isNotEmpty &&
+        double.tryParse(_sohController.text) == null) {
+      _showToast("Please enter a numeric value for the SOH field");
       return false;
     }
-  }
 
-  // Validate string fields are not empty
-  if (_productCodeController.text.isEmpty) {
-    _showToast("Please enter the Product Code");
-    return false;
-  }
-  if (_vendorNameController.text.isEmpty) {
-    _showToast("Please enter the Vendor Name");
-    return false;
-  }
-  if (_brandNameController.text.isEmpty) {
-    _showToast("Please enter the Brand Name");
-    return false;
-  }
-  if (_productNameController.text.isEmpty) {
-    _showToast("Please enter the Product Name");
-    return false;
-  }
-  if (_categoryController.text.isEmpty) {
-    _showToast("Please enter the Category");
-    return false;
-  }
-  if (_subCategoryController.text.isEmpty) {
-    _showToast("Please enter the Sub-Category");
-    return false;
-  }
-  if (_netQuantityController.text.isEmpty) {
-    _showToast("Please enter the Net Quantity");
-    return false;
-  }
+    if (_priceController.text.isNotEmpty &&
+        double.tryParse(_priceController.text) == null) {
+      _showToast("Please enter a numeric value for the Price field");
+      return false;
+    }
 
-  // Validate numeric fields are not empty and contain valid numbers
-  if (_energyController.text.isEmpty) {
-    _showToast("Please enter the Energy value");
-    return false;
-  } else if (double.tryParse(_energyController.text) == null) {
-    _showToast("Please enter a numeric value for the Energy field");
-    return false;
-  }
+    // Validate ingredients array
+    if (ref.read(ingredientsProvider).isEmpty) {
+      _showToast("Please add at least one Ingredient");
+      return false;
+    }
 
-  if (_proteinController.text.isEmpty) {
-    _showToast("Please enter the Protein value");
-    return false;
-  } else if (double.tryParse(_proteinController.text) == null) {
-    _showToast("Please enter a numeric value for the Protein field");
-    return false;
-  }
+    if (ref.read(fssaiProvider).isEmpty) {
+      _showToast("Please add fssai no.");
+      return false;
+    }
 
-  if (_carbohydratesController.text.isEmpty) {
-    _showToast("Please enter the Carbohydrates value");
-    return false;
-  } else if (double.tryParse(_carbohydratesController.text) == null) {
-    _showToast("Please enter a numeric value for the Carbohydrates field");
-    return false;
+    return true;
   }
-
-  if (_sugarsController.text.isEmpty) {
-    _showToast("Please enter the Sugars value");
-    return false;
-  } else if (double.tryParse(_sugarsController.text) == null) {
-    _showToast("Please enter a numeric value for the Sugars field");
-    return false;
-  }
-
-  if (_addedSugarsController.text.isEmpty) {
-    _showToast("Please enter the Added Sugars value");
-    return false;
-  } else if (double.tryParse(_addedSugarsController.text) == null) {
-    _showToast("Please enter a numeric value for the Added Sugars field");
-    return false;
-  }
-
-  if (_dietaryFiberController.text.isEmpty) {
-    _showToast("Please enter the Dietary Fiber value");
-    return false;
-  } else if (double.tryParse(_dietaryFiberController.text) == null) {
-    _showToast("Please enter a numeric value for the Dietary Fiber field");
-    return false;
-  }
-
-  if (_totalFatController.text.isEmpty) {
-    _showToast("Please enter the Total Fat value");
-    return false;
-  } else if (double.tryParse(_totalFatController.text) == null) {
-    _showToast("Please enter a numeric value for the Total Fat field");
-    return false;
-  }
-
-  if (_transFatController.text.isEmpty) {
-    _showToast("Please enter the Trans Fat value");
-    return false;
-  } else if (double.tryParse(_transFatController.text) == null) {
-    _showToast("Please enter a numeric value for the Trans Fat field");
-    return false;
-  }
-
-  if (_saturatedFatController.text.isEmpty) {
-    _showToast("Please enter the Saturated Fat value");
-    return false;
-  } else if (double.tryParse(_saturatedFatController.text) == null) {
-    _showToast("Please enter a numeric value for the Saturated Fat field");
-    return false;
-  }
-
-  if (_unsaturatedFatController.text.isEmpty) {
-    _showToast("Please enter the Unsaturated Fat value");
-    return false;
-  } else if (double.tryParse(_unsaturatedFatController.text) == null) {
-    _showToast("Please enter a numeric value for the Unsaturated Fat field");
-    return false;
-  }
-
-  if (_cholesterolController.text.isEmpty) {
-    _showToast("Please enter the Cholesterol value");
-    return false;
-  } else if (double.tryParse(_cholesterolController.text) == null) {
-    _showToast("Please enter a numeric value for the Cholesterol field");
-    return false;
-  }
-
-  // For Kealthy Score, HSN, Price (also numeric fields)
-  if (_kealthyscoreController.text.isNotEmpty &&
-      double.tryParse(_kealthyscoreController.text) == null) {
-    _showToast("Please enter a numeric value for the Kealthy Score field");
-    return false;
-  }
-
-  if (_hsnController.text.isNotEmpty &&
-      double.tryParse(_hsnController.text) == null) {
-    _showToast("Please enter a numeric value for the HSN field");
-    return false;
-  }
-
-  if (_priceController.text.isNotEmpty &&
-      double.tryParse(_priceController.text) == null) {
-    _showToast("Please enter a numeric value for the Price field");
-    return false;
-  }
-
-  // Check if micronutrients array is empty
-  if (ref.read(microNutrientsProvider).isEmpty) {
-    _showToast("Please add at least one Micronutrient");
-    return false;
-  }
-
-  // Check if ingredients array is empty
-  if (ref.read(ingredientsProvider).isEmpty) {
-    _showToast("Please add at least one Ingredient");
-    return false;
-  }
-
-  return true;
-}
 
   String _getImageLabel(int index) {
     const labels = ['Front View', 'Back View', 'Description', 'Ingredients'];
@@ -535,9 +516,6 @@ class _AddProductState extends ConsumerState<AddProduct> {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final images = ref.watch(productImageProvider);
-    final isLoading = ref.watch(loadingProvider);
-
-    // Watch the dropdown state
     final selectedOption = ref.watch(dropdownProvider);
 
     return Scaffold(
@@ -632,8 +610,8 @@ class _AddProductState extends ConsumerState<AddProduct> {
                         final labels = [
                           'Front View',
                           'Back View',
-                          'Description',
-                          'Ingredients'
+                          'Canva image 1',
+                          'Canva image 2'
                         ];
                         return Column(
                           mainAxisSize: MainAxisSize.min,
@@ -781,6 +759,91 @@ class _AddProductState extends ConsumerState<AddProduct> {
                           inputType: TextInputType.number,
                         ),
                         CustomTextFieldWithTitle(
+                          title: 'Caffein (mg)',
+                          hint: 'Enter Quantity',
+                          controller: _caffeinController,
+                          inputType: TextInputType.number,
+                        ),
+                        CustomTextFieldWithTitle(
+                          title: 'Sodium (mg)',
+                          hint: 'Enter Quantity',
+                          controller: _sodiumController,
+                          inputType: TextInputType.number,
+                        ),
+                        CustomTextFieldWithTitle(
+                          title: 'Iron (mg)',
+                          hint: 'Enter Quantity',
+                          controller: _ironController,
+                          inputType: TextInputType.number,
+                        ),
+                        CustomTextFieldWithTitle(
+                          title: 'Calcium (mg)',
+                          hint: 'Enter Quantity',
+                          controller: _calciumController,
+                          inputType: TextInputType.number,
+                        ),
+                        CustomTextFieldWithTitle(
+                          title: 'Copper(mg)',
+                          hint: 'Enter Quantity',
+                          controller: _copperController,
+                          inputType: TextInputType.number,
+                        ),
+                        CustomTextFieldWithTitle(
+                          title: 'Magnesium (mg)',
+                          hint: 'Enter Quantity',
+                          controller: _magnesiumController,
+                          inputType: TextInputType.number,
+                        ),
+                        CustomTextFieldWithTitle(
+                          title: 'Phosphorus (mg)',
+                          hint: 'Enter Quantity',
+                          controller: _phosphorusController,
+                          inputType: TextInputType.number,
+                        ),
+                        CustomTextFieldWithTitle(
+                          title: 'Potassium (mg)',
+                          hint: 'Enter Quantity',
+                          controller: _potassiumController,
+                          inputType: TextInputType.number,
+                        ),
+                        CustomTextFieldWithTitle(
+                          title: 'Zinc (mg)',
+                          hint: 'Enter Quantity',
+                          controller: _zincController,
+                          inputType: TextInputType.number,
+                        ),
+                        CustomTextFieldWithTitle(
+                          title: 'Manganese (mg)',
+                          hint: 'Enter Quantity',
+                          controller: _manganeseController,
+                          inputType: TextInputType.number,
+                        ),
+                        CustomTextFieldWithTitle(
+                          title: 'Selenium (mg)',
+                          hint: 'Enter Quantity',
+                          controller: _seleniumController,
+                          inputType: TextInputType.number,
+                        ),
+                        CustomTextFieldWithTitle(
+                          title: 'VitaminB2 (mg)',
+                          hint: 'Enter Quantity',
+                          controller: _vitaminB2Controller,
+                          inputType: TextInputType.number,
+                        ),
+                        CustomTextFieldWithTitle(
+                          title: 'VitaminB6 (mg)',
+                          hint: 'Enter Quantity',
+                          controller: _vitaminB6Controller,
+                          inputType: TextInputType.number,
+                        ),
+                        CustomTextFieldWithTitle(
+                          title: 'VitaminA (mg)',
+                          hint: 'Enter Quantity',
+                          controller: _vitaminAController,
+                          inputType: TextInputType.number,
+                        ),
+
+                        CustomTextFieldWithTitle(
                           title: 'What is it?',
                           hint: 'Enter Description',
                           controller: _whatIsItController,
@@ -796,33 +859,96 @@ class _AddProductState extends ConsumerState<AddProduct> {
                           controller: _kealthyscoreController,
                         ),
                         CustomTextFieldWithTitle(
-                          title: 'HSN',
+                          title: 'SOH',
                           hint: 'Enter Value',
-                          controller: _hsnController,
+                          controller: _sohController,
                         ),
                         CustomTextFieldWithTitle(
                           title: 'Price',
                           hint: 'Enter the Price',
                           controller: _priceController,
                         ),
+                        CustomTextFieldWithTitle(
+                          title: 'Manufacture Address',
+                          hint: 'Enter the Address',
+                          controller: _manufacturerAddressController,
+                        ),
+                        CustomTextFieldWithTitle(
+                          title: 'EAN',
+                          hint: 'Enter the EAN',
+                          controller: _eanController,
+                        ),
+                        CustomTextFieldWithTitle(
+                          enabled: false,
+                          title: 'Imported&Marketed By',
+                          hint: 'Enter the value',
+                          controller: _importedByController,
+                        ),
+                        CustomTextFieldWithTitle(
+                          enabled: false,
+                          title: 'Origin',
+                          hint: 'Enter the origin',
+                          controller: _originController,
+                        ),
+                        CustomTextFieldWithTitle(
+                          enabled: false,
+                          title: 'Manufactured date',
+                          hint: 'Enter the date',
+                          controller: _manufacturedDateController,
+                        ),
+                        CustomTextFieldWithTitle(
+                          enabled: false,
+                          title: 'Expiry',
+                          hint: 'Enter the expiry date',
+                          controller: _expiryController,
+                        ),
+                        CustomTextFieldWithTitle(
+                          title: 'Best Before',
+                          hint: 'Enter the value',
+                          controller: _bestBeforeController,
+                        ),
+                        CustomTextFieldWithTitle(
+                          title: 'Type',
+                          hint: 'Enter type',
+                          controller: _typeController,
+                        ),
+                        CustomTextFieldWithTitle(
+                          title: 'Serving Size',
+                          hint: 'Enter value',
+                          controller: _servingSizeController,
+                        ),
+                        CustomTextFieldWithTitle(
+                          title: 'Score Based On',
+                          hint: 'Enter value',
+                          controller: _scoredBasedOnController,
+                        ),
 
                         // Dropdowns for Boolean Fields
                         CustomDropdownWithTitle(
                           title: 'Is this product organic?',
-                          provider: _organicProvider, options: const ['Fully Organic', 'Partially Organic', 'Non-Organic'],
+                          provider: _organicProvider,
+                          options: const [
+                            'Fully Organic',
+                            'Partially Organic',
+                            'Non-Organic'
+                          ],
                         ),
                         CustomDropdownWithTitle(
                           title: 'Does it contain additives?',
-                          provider: _additivesProvider, 
-                          options: const ['No additives/Preservatives','Minimal natural Additives/Preservatives','Artifical Additives/Preservatives'],
+                          provider: _additivesProvider,
+                          options: const [
+                            'No additives/Preservatives',
+                            'Minimal natural Additives/Preservatives',
+                            'Artifical Additives/Preservatives'
+                          ],
                         ),
                         CustomDropdownWithTitle(
                           title:
                               'Does it contain artificial sweeteners or colors?',
-                          provider: _artificialSweetenersProvider, 
-                          options: const ['None','Limited','Present'],
+                          provider: _artificialSweetenersProvider,
+                          options: const ['None', 'Limited', 'Present'],
                         ),
-                        
+
                         YesNoDropdownWithTitle(
                           title: 'Is the product gluten-free?',
                           label: 'Select Gluten-Free',
@@ -851,26 +977,37 @@ class _AddProductState extends ConsumerState<AddProduct> {
                         ),
                         CustomDropdownWithTitle(
                           title: 'Is the product eco-friendly?',
-                          provider: _ecoFriendlyProvider, 
-                          options: const ['Sustainable/Ethical Sourcing','Partially Sustainable','Not Sustainable'],
+                          provider: _ecoFriendlyProvider,
+                          options: const [
+                            'Sustainable/Ethical Sourcing',
+                            'Partially Sustainable',
+                            'Not Sustainable'
+                          ],
                         ),
                         CustomDropdownWithTitle(
                           title: 'Does it use recyclable packaging?',
-                          provider: _recyclablePackagingProvider, 
-                          options: const ['Fully Recyclable','Partially Recyclable','Non-Recyclable'],
+                          provider: _recyclablePackagingProvider,
+                          options: const [
+                            'Fully Recyclable',
+                            'Partially Recyclable',
+                            'Non-Recyclable'
+                          ],
                         ),
                         Padding(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 16.0, vertical: 5),
+                            horizontal: 16.0,
+                          ),
                           child: ArrayInputWithTitle(
-                            title: 'Micronutrients',
-                            hintText: 'Calcium, Potassium, Magnesium...',
-                            provider: microNutrientsProvider,
+                            title: 'FSSAI',
+                            hintText: ' Enter FSSAI',
+                            provider: fssaiProvider,
                           ),
                         ),
+
                         Padding(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 16.0, vertical: 5),
+                            horizontal: 16.0,
+                          ),
                           child: ArrayInputWithTitle(
                             title: 'Ingredients',
                             hintText: 'Add an ingredient',
@@ -901,25 +1038,19 @@ class _AddProductState extends ConsumerState<AddProduct> {
                           ),
                           backgroundColor: Colors.blue,
                         ),
-                        onPressed: isLoading
-                            ? null // Disable the button when loading
-                            : () {
-                                if (_validateFields()) {
-                                  _addProductToFirebase(ref);
-                                }
-                              },
-                        child: isLoading
-                            ? const CircularProgressIndicator(
-                                color: Colors.white,
-                              )
-                            : const Text(
-                                'Save',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 15,
-                                ),
-                              ),
+                        onPressed: () {
+                          if (_validateFields()) {
+                            _addProductToFirebase(ref);
+                          }
+                        },
+                        child: const Text(
+                          'Upload',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
+                        ),
                       ),
                     ),
                   ),

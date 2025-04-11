@@ -5,6 +5,7 @@ class CustomTextFieldWithTitle extends StatelessWidget {
   final String hint;
   final TextEditingController controller;
   final TextInputType inputType;
+  final bool enabled;
 
   const CustomTextFieldWithTitle({
     super.key,
@@ -12,6 +13,7 @@ class CustomTextFieldWithTitle extends StatelessWidget {
     required this.hint,
     required this.controller,
     this.inputType = TextInputType.text,
+    this.enabled = true,
   });
 
   @override
@@ -37,6 +39,7 @@ class CustomTextFieldWithTitle extends StatelessWidget {
               color: Colors.white, // Optional: Add a background color
             ),
             child: TextField(
+              enabled: enabled,
               focusNode: focusNode,
               controller: controller,
               keyboardType: inputType,

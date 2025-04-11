@@ -56,87 +56,82 @@ class ExcelUploader extends ConsumerWidget {
       }
     }
 
-    Future<void> uploadExcelFile(BuildContext ctx, Uint8List excelFile) async {
+   Future<void> uploadExcelFile(BuildContext ctx, Uint8List excelFile) async {
   ref.read(isUploadingProvider.notifier).state = true;
-  
 
   try {
     // Decode the Excel file
     final excel = Excel.decodeBytes(excelFile);
-
-    // Select the correct sheet (update the sheet name if required)
-    const sheetName = 'Kealthy Products'; // Replace with your actual sheet name
+    final sheetName = excel.tables.keys.first; // Automatically select first sheet
     final sheet = excel.tables[sheetName];
 
     if (sheet != null) {
       List<Map<String, dynamic>> productDataList = [];
+      List<String> headers = [];
 
-      // Helper functions for parsing
-      String? parseString(dynamic cell) => cell?.value?.toString().trim();
-      List<String> parseList(dynamic cell) =>
-          (cell?.value?.toString().split(',') ?? [])
-              .map((e) => e.trim())
-              .where((e) => e.isNotEmpty)
-              .toList();
+      // Extract headers (first row)
+      for (var cell in sheet.rows.first) {
+        headers.add(cell?.value?.toString().trim() ?? 'UnknownColumn');
+      }
 
       // Iterate through rows, starting after the header row
       for (int rowIndex = 1; rowIndex < sheet.rows.length; rowIndex++) {
         final row = sheet.rows[rowIndex];
 
-        // Debugging: Print each row's content
-        debugPrint('Row $rowIndex: ${row.map((cell) => cell?.value).toList()}');
-        debugPrint('Sheet Data: ${sheet.rows.map((row) => row.map((cell) => cell?.value).toList())}');
-
-        // Skip completely empty rows
+        // Skip empty rows
         if (row.every((cell) => cell?.value == null)) continue;
 
-        // Build product data
-        productDataList.add({
-          "Product code": parseString(row[0]),
-          "Vendor Name": parseString(row[1]),
-          "Brand Name": parseString(row[2]),
-          "Name": parseString(row[3]),
-          "Category": parseString(row[4]),
-          "Subcategory": parseString(row[5]),
-          "ImageUrl": parseList(row[6]),
-          "Qty": parseString(row[7]),
-          "Energy (kcal)": parseString(row[8]),
-          "Protein (g)": parseString(row[9]),
-          "Total Carbohydrates (g)": parseString(row[10]),
-          "Sugars (g)": parseString(row[11]),
-          "Added Sugars (g)": parseString(row[12]),
-          "Dietary Fiber (g)": parseString(row[13]),
-          "Total Fat (g)": parseString(row[14]),
-          "Trans Fat (g)": parseString(row[15]),
-          "Saturated Fat (g)": parseString(row[16]),
-          "Unsaturated Fat (g)": parseString(row[17]),
-          "Cholesterol (mg)": parseString(row[18]),
-          "Micronutrients": parseList(row[19]),
-          "Ingredients": parseList(row[20]),
-          "Organic": parseString(row[21]),
-          "Additives/Preservatives": parseString(row[22]),
-          "Artificial Sweeteners?Colors": parseString(row[23]),
-          "Gluten-free": parseString(row[24]),
-          "Vegan-Friendly": parseString(row[25]),
-          "Keto Friendly": parseString(row[26]),
-          "Low GI": parseString(row[27]),
-          "Low Sugar (less than 5g per serving)": parseString(row[28]),
-          "Eco-Friendly": parseString(row[29]),
-          "Recyclable Packaging": parseString(row[30]),
-          "What is it?": parseString(row[31]),
-          "What is it used for?": parseString(row[32]),
-          "Kealthy Score":parseString(row[33]),
-          "HSN" : parseString(row[34]),
-          "Price":parseString(row[35])
-        });
+        Map<String, dynamic> productData = {};
+
+        for (int colIndex = 0; colIndex < headers.length; colIndex++) {
+          String columnName = headers[colIndex];
+          var cellValue = row[colIndex]?.value?.toString().trim();
+
+          // Convert SOH (Stock on Hand) to a number
+          if (columnName.toLowerCase() == "soh") {
+            productData[columnName] = double.tryParse(cellValue ?? "0") ?? 0.0;
+          }
+          // Convert FSSAI, Ingredients, and Scored Based On fields to arrays
+          else if (columnName.toLowerCase().contains("fssai") ||
+                   columnName.toLowerCase().contains("ingredients") ||
+                   columnName.toLowerCase().contains("scored  based on")) {
+            productData[columnName] = cellValue != null
+                ? cellValue.split(',').map((e) => e.trim()).toList()
+                : [];
+          } 
+          // Convert Image URL field to a List
+          else if (columnName.toLowerCase().contains("imageurl") && cellValue != null) {
+            productData[columnName] = cellValue.split(',').map((e) => e.trim()).toList();
+          }
+          // Convert numeric fields properly
+          else if (columnName.toLowerCase().contains("price") || columnName.toLowerCase().contains("kealthy score")) {
+            productData[columnName] = double.tryParse(cellValue ?? "0") ?? 0.0;
+          } 
+          // Store dates properly
+          else if (columnName.toLowerCase().contains("date") || columnName.toLowerCase().contains("expiry")) {
+            productData[columnName] = cellValue; // Further parsing can be applied if needed
+          } 
+          // Store other values as strings
+          else {
+            productData[columnName] = cellValue;
+          }
+        }
+
+        productDataList.add(productData);
       }
 
       // Upload data to Firestore in a batch
       final batch = FirebaseFirestore.instance.batch();
+      final productCollection = FirebaseFirestore.instance.collection('Products');
+
       for (var product in productDataList) {
-        final docRef = FirebaseFirestore.instance.collection('Products').doc();
-        batch.set(docRef, product);
+        final productCode = product["Product code"];
+        if (productCode != null && productCode.isNotEmpty) {
+          final docRef = productCollection.doc(productCode); // Use Product Code as doc ID
+          batch.set(docRef, product, SetOptions(merge: true)); // Merge to update existing data
+        }
       }
+
       await batch.commit();
 
       // Success toast
@@ -177,8 +172,7 @@ class ExcelUploader extends ConsumerWidget {
                     ElevatedButton(
                       onPressed: () {
                         Navigator.of(dialogContext).pop();
-                        ref.read(selectedExcelFileProvider.notifier).state =
-                            null; // Clear selected file
+                        ref.read(selectedExcelFileProvider.notifier).state = null; // Clear selected file
                       },
                       child: const Text('OK'),
                     ),
@@ -219,7 +213,7 @@ class ExcelUploader extends ConsumerWidget {
                   backgroundColor: Colors.blue.shade900,
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10))),
-               onPressed: isUploading
+              onPressed: isUploading
                   ? null // Disable the button if already uploading
                   : selectExcelFile,
               label: const Text(
@@ -254,7 +248,6 @@ class ExcelUploader extends ConsumerWidget {
                 onPressed: isUploading
                     ? null // Disable if already uploading
                     : () {
-                      
                         final bytes = selectedExcelFile['fileBytes'];
                         if (bytes != null) {
                           uploadExcelFile(context, bytes);
@@ -268,8 +261,7 @@ class ExcelUploader extends ConsumerWidget {
                       },
                 label: isUploading
                     ? const CircularProgressIndicator(
-                        valueColor:
-                            AlwaysStoppedAnimation<Color>(Colors.white),
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                       )
                     : const Text(
                         "Upload Excel Data",

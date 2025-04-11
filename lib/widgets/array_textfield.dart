@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kealthy_admin/view/add_product.dart';
+import 'package:kealthy_admin/view/list_notifier.dart';
 
 class ArrayInputWithTitle extends ConsumerWidget {
   final String title;
@@ -34,6 +34,8 @@ class ArrayInputWithTitle extends ConsumerWidget {
         TextFormField(
           controller: controller,
           decoration: InputDecoration(
+            filled: true,
+            fillColor: Colors.white,
             hintText: hintText,
             border: const OutlineInputBorder(
               borderRadius: BorderRadius.all(Radius.circular(10)),
@@ -41,7 +43,9 @@ class ArrayInputWithTitle extends ConsumerWidget {
           ),
           onFieldSubmitted: (value) {
             if (value.isNotEmpty) {
-              ref.read(provider.notifier).addItem(value);
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                ref.read(provider.notifier).addItem(value);
+              });
               controller.clear();
             }
           },
@@ -55,24 +59,20 @@ class ArrayInputWithTitle extends ConsumerWidget {
         Consumer(
           builder: (context, ref, child) {
             final items = ref.watch(provider);
-            return SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: List.generate(items.length, (index) {
-                  return Padding(
-                    padding: const EdgeInsets.all(4.0),
-                    child: Chip(
-                      label: Text(items[index]),
-                      deleteIcon: const Icon(Icons.clear),
-                      onDeleted: () {
-                        ref.read(provider.notifier).removeItem(index);
-                      },
-                      backgroundColor: Colors.blue[100],
-                      labelStyle: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  );
-                }),
-              ),
+            return Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: List.generate(items.length, (index) {
+                return Chip(
+                  label: Text(items[index]),
+                  deleteIcon: const Icon(Icons.clear),
+                  onDeleted: () {
+                    ref.read(provider.notifier).removeItem(index);
+                  },
+                  backgroundColor: Colors.blue[100],
+                  labelStyle: const TextStyle(fontWeight: FontWeight.bold),
+                );
+              }),
             );
           },
         ),
