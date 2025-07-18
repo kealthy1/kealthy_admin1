@@ -5,6 +5,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:kealthy_admin/view/Add%20product/provider.dart';
 import 'package:kealthy_admin/view/excel_upload.dart';
 import 'package:kealthy_admin/view/list_notifier.dart';
 import 'package:kealthy_admin/view/yesno.dart';
@@ -97,7 +98,6 @@ class _AddProductState extends ConsumerState<AddProduct> {
   final TextEditingController _whatIsItController = TextEditingController();
   final TextEditingController _whatIsItUsedForController =
       TextEditingController();
-  final TextEditingController _kealthyscoreController = TextEditingController();
   final TextEditingController _sohController = TextEditingController();
   final TextEditingController _priceController = TextEditingController();
 
@@ -109,14 +109,8 @@ class _AddProductState extends ConsumerState<AddProduct> {
           'COTOLORE ENTERPRISES LLP15/293-C, Muriyankara - Pinarmunda RoadPeringala, Ernakulam - 683565');
   final TextEditingController _originController =
       TextEditingController(text: 'India');
-  final TextEditingController _manufacturedDateController =
-      TextEditingController(text: 'NIL');
-  final TextEditingController _expiryController = TextEditingController(text: ' NIL');
   final TextEditingController _bestBeforeController = TextEditingController();
-  final TextEditingController _typeController = TextEditingController();
   final TextEditingController _servingSizeController = TextEditingController();
-  final TextEditingController _scoredBasedOnController =
-      TextEditingController();
 
 // State management for list-based data (ingredients and micronutrients)
   final ingredientsProvider = StateNotifierProvider<ListNotifier, List<String>>(
@@ -168,7 +162,7 @@ class _AddProductState extends ConsumerState<AddProduct> {
   // State for file upload
 
   Future<Uint8List> compressImage(Uint8List originalBytes,
-      {int maxSizeInKB = 200}) async {
+      {int maxSizeInKB = 100}) async {
     // Decode image
     img.Image? image = img.decodeImage(originalBytes);
     if (image == null) return originalBytes;
@@ -245,23 +239,19 @@ class _AddProductState extends ConsumerState<AddProduct> {
         "Vendor Name": _vendorNameController.text,
         "Brand Name": _brandNameController.text,
         "Name": _productNameController.text,
-        "Category": _categoryController.text,
-        "Subcategory": _subCategoryController.text,
+        "Category": ref.read(selectedCategoryProvider),
+        "Subcategory": ref.read(selectedSubCategoryProvider),
         "Qty": _netQuantityController.text,
         "Manufacturer Address": _manufacturerAddressController.text,
         "EAN": _eanController.text,
         "Imported&Marketed By": _importedByController.text,
         "Orgin": _originController.text,
-        "Manufactured date": _manufacturedDateController.text,
-        "Expiry": _expiryController.text,
         "Best Before": _bestBeforeController.text,
-        "Type": _typeController.text,
         "Serving size": _servingSizeController.text,
-        "Scored Based On": _scoredBasedOnController.text,
         "What is it?": _whatIsItController.text,
         "What is it used for?": _whatIsItUsedForController.text,
-        "Ingredients": ingredients, // List<String>
-        "FSSAI": fssai, // List<String>
+        "Ingredients": ingredients,
+        "FSSAI": fssai,
         "ImageUrl": imageUrls,
         "Energy (kcal)": _energyController.text,
         "Protein (g)": _proteinController.text,
@@ -288,7 +278,6 @@ class _AddProductState extends ConsumerState<AddProduct> {
         "Vitamin B2": _vitaminB2Controller.text,
         "Vitamin B6 (Pyridoxine)": _vitaminB6Controller.text,
         "Vitamin A": _vitaminAController.text,
-        "Kealthy Score": double.tryParse(_kealthyscoreController.text) ?? 0.0,
         "SOH": double.tryParse(_sohController.text) ?? 0.0,
         "Price": double.tryParse(_priceController.text) ?? 0.0,
         "Organic": ref.read(_organicProvider),
@@ -308,10 +297,10 @@ class _AddProductState extends ConsumerState<AddProduct> {
       await FirebaseFirestore.instance.collection('Products').add(productData);
 
       ref.read(loadingProvider.notifier).state = false;
-      Navigator.of(context).pop(); // Dismiss loading dialog
+      Navigator.of(context).pop();
 
       _clearFields(ref);
-      _showSuccessAnimation(context); // Optional success animation
+      _showSuccessAnimation(context);
 
       Fluttertoast.showToast(
         msg: "Product added successfully!",
@@ -323,7 +312,7 @@ class _AddProductState extends ConsumerState<AddProduct> {
       );
     } catch (e) {
       ref.read(loadingProvider.notifier).state = false;
-      Navigator.of(context).pop(); 
+      Navigator.of(context).pop();
 
       Fluttertoast.showToast(
         msg: "Error adding product: $e",
@@ -371,9 +360,12 @@ class _AddProductState extends ConsumerState<AddProduct> {
     _potassiumController.clear();
     _whatIsItController.clear();
     _whatIsItUsedForController.clear();
-    _kealthyscoreController.clear();
+
     _sohController.clear();
     _priceController.clear();
+
+    ref.read(selectedCategoryProvider.notifier).state = '';
+    ref.read(selectedSubCategoryProvider.notifier).state = '';
 
     // ignore: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member
     ref.read(ingredientsProvider.notifier).state = [];
@@ -441,8 +433,8 @@ class _AddProductState extends ConsumerState<AddProduct> {
       "Vendor Name": _vendorNameController.text,
       "Brand Name": _brandNameController.text,
       "Product Name": _productNameController.text,
-      "Category": _categoryController.text,
-      "Sub-Category": _subCategoryController.text,
+      "Category": ref.read(selectedCategoryProvider),
+      "Subcategory": ref.read(selectedSubCategoryProvider),
       "Net Quantity": _netQuantityController.text,
       "Energy": _energyController.text,
       "Protein": _proteinController.text,
@@ -457,9 +449,7 @@ class _AddProductState extends ConsumerState<AddProduct> {
       "Cholesterol": _cholesterolController.text,
       "Caffein": _caffeinController.text,
       "EAN": _eanController.text,
-      "Expiry": _expiryController.text,
       "Best Before": _bestBeforeController.text,
-      "Type": _typeController.text,
       "Serving size": _servingSizeController.text,
     };
 
@@ -677,16 +667,169 @@ class _AddProductState extends ConsumerState<AddProduct> {
                           hint: 'Enter Product Name',
                           controller: _productNameController,
                         ),
-                        CustomTextFieldWithTitle(
-                          title: 'Category',
-                          hint: 'Enter Product Category',
-                          controller: _categoryController,
-                        ),
-                        CustomTextFieldWithTitle(
-                          title: 'Sub-Category',
-                          hint: 'Enter Product Sub-Category',
-                          controller: _subCategoryController,
-                        ),
+                        Consumer(builder: (context, ref, _) {
+                          final categoriesAsync = ref.watch(categoriesProvider);
+                          final selectedCategory =
+                              ref.watch(selectedCategoryProvider);
+
+                          final isLoading = categoriesAsync.isLoading;
+                          final categories = categoriesAsync.value ?? [];
+
+                          final isValid = categories.contains(selectedCategory);
+
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16.0, vertical: 5),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Category',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16.0,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Stack(
+                                  alignment: Alignment.centerRight,
+                                  children: [
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        border: Border.all(
+                                            color: Colors.grey, width: 1),
+                                        borderRadius: BorderRadius.circular(10),
+                                        color: Colors.white,
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 12),
+                                      child: DropdownButton<String>(
+                                        value:
+                                            isValid ? selectedCategory : null,
+                                        isExpanded: true,
+                                        hint: const Text('Select Category',
+                                            style:
+                                                TextStyle(color: Colors.black)),
+                                        underline: const SizedBox.shrink(),
+                                        items: categories.map((cat) {
+                                          return DropdownMenuItem<String>(
+                                            value: cat,
+                                            child: Text(cat),
+                                          );
+                                        }).toList(),
+                                        onChanged: (value) {
+                                          if (value != null) {
+                                            ref
+                                                .read(selectedCategoryProvider
+                                                    .notifier)
+                                                .state = value;
+                                            ref
+                                                .read(
+                                                    selectedSubCategoryProvider
+                                                        .notifier)
+                                                .state = '';
+                                          }
+                                        },
+                                      ),
+                                    ),
+                                    if (isLoading)
+                                      const Padding(
+                                        padding: EdgeInsets.only(right: 40),
+                                        child: SizedBox(
+                                          width: 16,
+                                          height: 16,
+                                          child: CircularProgressIndicator(
+                                              strokeWidth: 2),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                        Consumer(builder: (context, ref, _) {
+                          final selectedCategory =
+                              ref.watch(selectedCategoryProvider);
+                          final selectedSubCategory =
+                              ref.watch(selectedSubCategoryProvider);
+                          final subcatsAsync = ref
+                              .watch(subcategoriesProvider(selectedCategory));
+
+                          final isLoading = subcatsAsync.isLoading;
+                          final subcategories = subcatsAsync.value ?? [];
+
+                          final isValid =
+                              subcategories.contains(selectedSubCategory);
+
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16.0, vertical: 5),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Subcategory',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16.0,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Stack(
+                                  alignment: Alignment.centerRight,
+                                  children: [
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        border: Border.all(
+                                            color: Colors.grey, width: 1),
+                                        borderRadius: BorderRadius.circular(10),
+                                        color: Colors.white,
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 12),
+                                      child: DropdownButton<String>(
+                                        value: isValid
+                                            ? selectedSubCategory
+                                            : null,
+                                        isExpanded: true,
+                                        hint: const Text('Select Subcategory',
+                                            style:
+                                                TextStyle(color: Colors.black)),
+                                        underline: const SizedBox.shrink(),
+                                        items: subcategories.map((sub) {
+                                          return DropdownMenuItem<String>(
+                                            value: sub,
+                                            child: Text(sub),
+                                          );
+                                        }).toList(),
+                                        onChanged: (value) {
+                                          if (value != null) {
+                                            ref
+                                                .read(
+                                                    selectedSubCategoryProvider
+                                                        .notifier)
+                                                .state = value;
+                                          }
+                                        },
+                                      ),
+                                    ),
+                                    if (isLoading)
+                                      const Padding(
+                                        padding: EdgeInsets.only(right: 40),
+                                        child: SizedBox(
+                                          width: 16,
+                                          height: 16,
+                                          child: CircularProgressIndicator(
+                                              strokeWidth: 2),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
                         CustomTextFieldWithTitle(
                           title: 'Net Quantity',
                           hint: 'Enter Quantity',
@@ -854,11 +997,6 @@ class _AddProductState extends ConsumerState<AddProduct> {
                           controller: _whatIsItUsedForController,
                         ),
                         CustomTextFieldWithTitle(
-                          title: 'Kealthy Score',
-                          hint: 'Enter Score',
-                          controller: _kealthyscoreController,
-                        ),
-                        CustomTextFieldWithTitle(
                           title: 'SOH',
                           hint: 'Enter Value',
                           controller: _sohController,
@@ -891,36 +1029,14 @@ class _AddProductState extends ConsumerState<AddProduct> {
                           controller: _originController,
                         ),
                         CustomTextFieldWithTitle(
-                          enabled: false,
-                          title: 'Manufactured date',
-                          hint: 'Enter the date',
-                          controller: _manufacturedDateController,
-                        ),
-                        CustomTextFieldWithTitle(
-                          enabled: false,
-                          title: 'Expiry',
-                          hint: 'Enter the expiry date',
-                          controller: _expiryController,
-                        ),
-                        CustomTextFieldWithTitle(
                           title: 'Best Before',
                           hint: 'Enter the value',
                           controller: _bestBeforeController,
                         ),
                         CustomTextFieldWithTitle(
-                          title: 'Type',
-                          hint: 'Enter type',
-                          controller: _typeController,
-                        ),
-                        CustomTextFieldWithTitle(
                           title: 'Serving Size',
                           hint: 'Enter value',
                           controller: _servingSizeController,
-                        ),
-                        CustomTextFieldWithTitle(
-                          title: 'Score Based On',
-                          hint: 'Enter value',
-                          controller: _scoredBasedOnController,
                         ),
 
                         // Dropdowns for Boolean Fields

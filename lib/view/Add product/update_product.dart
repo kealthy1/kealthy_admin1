@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image/image.dart' as img;
+import 'package:kealthy_admin/view/Add%20product/provider.dart';
 import 'package:kealthy_admin/view/list_notifier.dart';
 import 'package:lottie/lottie.dart';
 import 'package:fluttertoast/fluttertoast.dart';
@@ -14,7 +15,6 @@ import 'package:kealthy_admin/widgets/array_textfield.dart';
 
 final documentIdProvider = StateProvider<String?>((ref) => null);
 
-/// A notifier for storing up to 4 image bytes
 class ProductImageNotifier extends StateNotifier<List<Uint8List?>> {
   ProductImageNotifier() : super(List.filled(4, null));
 
@@ -120,8 +120,6 @@ class _UpdateProductState extends ConsumerState<UpdateProduct> {
   final TextEditingController _typeController = TextEditingController();
   final TextEditingController _servingSizeController = TextEditingController();
 
-
-
   /// A helper function to show a message (SnackBar or Toast)
   void _showMessage(String message) {
     if (kIsWeb) {
@@ -158,7 +156,7 @@ class _UpdateProductState extends ConsumerState<UpdateProduct> {
 
   /// Compress the image to ~200KB or less
   Future<Uint8List> compressImage(Uint8List originalBytes,
-      {int maxSizeInKB = 200}) async {
+      {int maxSizeInKB = 100}) async {
     final decoded = img.decodeImage(originalBytes);
     if (decoded == null) return originalBytes;
 
@@ -242,31 +240,33 @@ class _UpdateProductState extends ConsumerState<UpdateProduct> {
   }
 
   void _clearAllFields() {
-  _searchController.clear();
-  _vendorNameController.clear();
-  _brandNameController.clear();
-  _productNameController.clear();
-  _categoryController.clear();
-  _subCategoryController.clear();
-  _netQuantityController.clear();
-  _sohController.clear();
-  _priceController.clear();
-  _manufacturerAddressController.clear();
-  _eanController.clear();
-  _importedByController.clear();
-  _originController.clear();
-  _manufacturedDateController.clear();
-  _expiryController.clear();
-  _bestBeforeController.clear();
-  _typeController.clear();
-  _servingSizeController.clear();
+    _searchController.clear();
+    _vendorNameController.clear();
+    _brandNameController.clear();
+    _productNameController.clear();
+    _categoryController.clear();
+    _subCategoryController.clear();
+    _netQuantityController.clear();
+    _sohController.clear();
+    _priceController.clear();
+    _manufacturerAddressController.clear();
+    _eanController.clear();
+    _importedByController.clear();
+    _originController.clear();
+    _manufacturedDateController.clear();
+    _expiryController.clear();
+    _bestBeforeController.clear();
+    _servingSizeController.clear();
 
-  ref.read(fssaiProvider.notifier).clearItems();
-  ref.read(productImageProvider.notifier).clear();
-  ref.read(existingImageUrlsProvider.notifier).clearAll();
+    ref.read(selectedCategoryProvider.notifier).state = '';
+    ref.read(selectedSubCategoryProvider.notifier).state = '';
 
-  ref.read(documentIdProvider.notifier).state = null; // Riverpod state update
-}
+    ref.read(fssaiProvider.notifier).clearItems();
+    ref.read(productImageProvider.notifier).clear();
+    ref.read(existingImageUrlsProvider.notifier).clearAll();
+
+    ref.read(documentIdProvider.notifier).state = null; // Riverpod state update
+  }
 
   /// When user clicks on a suggestion, fill in the fields
   void _onSuggestionSelected(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
@@ -277,15 +277,15 @@ class _UpdateProductState extends ConsumerState<UpdateProduct> {
     _vendorNameController.text = data["Vendor Name"] ?? "";
     _brandNameController.text = data["Brand Name"] ?? "";
     _productNameController.text = data["Name"] ?? "";
-    _categoryController.text = data["Category"] ?? "";
-    _subCategoryController.text = data["Subcategory"] ?? "";
+    ref.read(selectedCategoryProvider.notifier).state = data["Category"] ?? '';
+    ref.read(selectedSubCategoryProvider.notifier).state =
+        data["Subcategory"] ?? '';
     _netQuantityController.text = data["Qty"] ?? "";
     _manufacturerAddressController.text = data["Manufacturer Address"] ?? "";
     _eanController.text = data["EAN"] ?? "";
     _importedByController.text = data["Imported&Marketed By"] ?? "";
     _expiryController.text = data["Expiry"] ?? "";
     _bestBeforeController.text = data["Best Before"] ?? "";
-    _typeController.text = data["Type"] ?? "";
     _originController.text = data["Orgin"] ?? "";
     _servingSizeController.text = data["Serving size"] ?? "";
     _sohController.text = (data["SOH"] ?? 0.0).toString();
@@ -364,8 +364,8 @@ class _UpdateProductState extends ConsumerState<UpdateProduct> {
         "Vendor Name": _vendorNameController.text,
         "Brand Name": _brandNameController.text,
         "Name": _productNameController.text,
-        "Category": _categoryController.text,
-        "Subcategory": _subCategoryController.text,
+        "Category": ref.read(selectedCategoryProvider),
+        "Subcategory": ref.read(selectedSubCategoryProvider),
         "Qty": _netQuantityController.text,
         "Manufacturer Address": _manufacturerAddressController.text,
         "EAN": _eanController.text,
@@ -394,7 +394,7 @@ class _UpdateProductState extends ConsumerState<UpdateProduct> {
 
       Navigator.of(context).pop(); // close the loading dialog
       ref.read(loadingProvider.notifier).state = false;
-      _clearAllFields(); 
+      _clearAllFields();
 
       _showSuccessAnimation();
       _showMessage("Product updated successfully!");
@@ -576,16 +576,169 @@ class _UpdateProductState extends ConsumerState<UpdateProduct> {
                           hint: 'Enter Product Name',
                           controller: _productNameController,
                         ),
-                        CustomTextFieldWithTitle(
-                          title: 'Category',
-                          hint: 'Enter Category',
-                          controller: _categoryController,
-                        ),
-                        CustomTextFieldWithTitle(
-                          title: 'Sub-Category',
-                          hint: 'Enter Sub-Category',
-                          controller: _subCategoryController,
-                        ),
+                        Consumer(builder: (context, ref, _) {
+                          final categoriesAsync = ref.watch(categoriesProvider);
+                          final selectedCategory =
+                              ref.watch(selectedCategoryProvider);
+
+                          final isLoading = categoriesAsync.isLoading;
+                          final categories = categoriesAsync.value ?? [];
+
+                          final isValid = categories.contains(selectedCategory);
+
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16.0, vertical: 5),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Category',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16.0,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Stack(
+                                  alignment: Alignment.centerRight,
+                                  children: [
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        border: Border.all(
+                                            color: Colors.grey, width: 1),
+                                        borderRadius: BorderRadius.circular(10),
+                                        color: Colors.white,
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 12),
+                                      child: DropdownButton<String>(
+                                        value:
+                                            isValid ? selectedCategory : null,
+                                        isExpanded: true,
+                                        hint: const Text('Select Category',
+                                            style:
+                                                TextStyle(color: Colors.black)),
+                                        underline: const SizedBox.shrink(),
+                                        items: categories.map((cat) {
+                                          return DropdownMenuItem<String>(
+                                            value: cat,
+                                            child: Text(cat),
+                                          );
+                                        }).toList(),
+                                        onChanged: (value) {
+                                          if (value != null) {
+                                            ref
+                                                .read(selectedCategoryProvider
+                                                    .notifier)
+                                                .state = value;
+                                            ref
+                                                .read(
+                                                    selectedSubCategoryProvider
+                                                        .notifier)
+                                                .state = '';
+                                          }
+                                        },
+                                      ),
+                                    ),
+                                    if (isLoading)
+                                      const Padding(
+                                        padding: EdgeInsets.only(right: 40),
+                                        child: SizedBox(
+                                          width: 16,
+                                          height: 16,
+                                          child: CircularProgressIndicator(
+                                              strokeWidth: 2),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                        Consumer(builder: (context, ref, _) {
+                          final selectedCategory =
+                              ref.watch(selectedCategoryProvider);
+                          final selectedSubCategory =
+                              ref.watch(selectedSubCategoryProvider);
+                          final subcatsAsync = ref
+                              .watch(subcategoriesProvider(selectedCategory));
+
+                          final isLoading = subcatsAsync.isLoading;
+                          final subcategories = subcatsAsync.value ?? [];
+
+                          final isValid =
+                              subcategories.contains(selectedSubCategory);
+
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16.0, vertical: 5),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Subcategory',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16.0,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Stack(
+                                  alignment: Alignment.centerRight,
+                                  children: [
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        border: Border.all(
+                                            color: Colors.grey, width: 1),
+                                        borderRadius: BorderRadius.circular(10),
+                                        color: Colors.white,
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 12),
+                                      child: DropdownButton<String>(
+                                        value: isValid
+                                            ? selectedSubCategory
+                                            : null,
+                                        isExpanded: true,
+                                        hint: const Text('Select Subcategory',
+                                            style:
+                                                TextStyle(color: Colors.black)),
+                                        underline: const SizedBox.shrink(),
+                                        items: subcategories.map((sub) {
+                                          return DropdownMenuItem<String>(
+                                            value: sub,
+                                            child: Text(sub),
+                                          );
+                                        }).toList(),
+                                        onChanged: (value) {
+                                          if (value != null) {
+                                            ref
+                                                .read(
+                                                    selectedSubCategoryProvider
+                                                        .notifier)
+                                                .state = value;
+                                          }
+                                        },
+                                      ),
+                                    ),
+                                    if (isLoading)
+                                      const Padding(
+                                        padding: EdgeInsets.only(right: 40),
+                                        child: SizedBox(
+                                          width: 16,
+                                          height: 16,
+                                          child: CircularProgressIndicator(
+                                              strokeWidth: 2),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
                         CustomTextFieldWithTitle(
                           title: 'Net Quantity',
                           hint: 'Enter Net Quantity',
@@ -633,11 +786,6 @@ class _UpdateProductState extends ConsumerState<UpdateProduct> {
                           controller: _bestBeforeController,
                         ),
                         CustomTextFieldWithTitle(
-                          title: 'Type',
-                          hint: 'Enter Product Type',
-                          controller: _typeController,
-                        ),
-                        CustomTextFieldWithTitle(
                           title: 'Serving Size',
                           hint: 'Enter Value',
                           controller: _servingSizeController,
@@ -665,20 +813,96 @@ class _UpdateProductState extends ConsumerState<UpdateProduct> {
                     const SizedBox(height: 24),
 
                     // UPDATE BUTTON
-                    ElevatedButton(
-                      onPressed: _updateProduct,
-                      style: ElevatedButton.styleFrom(
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10)),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 24, vertical: 12),
-                        backgroundColor: Colors.blue,
-                      ),
-                      child: const Text(
-                        'Update Product',
-                        style: TextStyle(color: Colors.white),
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        ElevatedButton(
+                          onPressed: _updateProduct,
+                          style: ElevatedButton.styleFrom(
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10)),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 24, vertical: 12),
+                            backgroundColor: Colors.blue,
+                          ),
+                          child: const Text(
+                            'Update Product',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        if (ref.watch(documentIdProvider) != null)
+                          ElevatedButton(
+                            onPressed: () async {
+                              final confirm = await showDialog<bool>(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  title: const Row(
+                                    children: [
+                                      Icon(Icons.warning, color: Colors.red),
+                                      SizedBox(width: 8),
+                                      Text("Confirm Deletion"),
+                                    ],
+                                  ),
+                                  content: const Text(
+                                    "Are you sure you want to delete this product permanently? This action cannot be undone.",
+                                    style: TextStyle(fontSize: 16),
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                        onPressed: () =>
+                                            Navigator.pop(context, false),
+                                        child: const Text(
+                                          "Cancel",
+                                          style: TextStyle(color: Colors.black),
+                                        )),
+                                    ElevatedButton(
+                                        onPressed: () =>
+                                            Navigator.pop(context, true),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.red,
+                                        ),
+                                        child: const Text(
+                                          "Delete",
+                                          style: TextStyle(color: Colors.white),
+                                        )),
+                                  ],
+                                ),
+                              );
+
+                              if (confirm == true) {
+                                final docId = ref.read(documentIdProvider);
+                                if (docId != null) {
+                                  try {
+                                    await FirebaseFirestore.instance
+                                        .collection('Products')
+                                        .doc(docId)
+                                        .delete();
+                                    _showMessage(
+                                        "Product deleted successfully!");
+                                    _clearAllFields();
+                                  } catch (e) {
+                                    _showMessage(
+                                        "Failed to delete product: $e");
+                                  }
+                                }
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 24, vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10)),
+                            ),
+                            child: const Text(
+                              'Delete Product',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          ),
+                      ],
                     ),
+                    const SizedBox(height: 50),
                   ],
                 ),
               ),

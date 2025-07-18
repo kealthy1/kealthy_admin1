@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kealthy_admin/view/Add%20product/add_product.dart';
+import 'package:kealthy_admin/view/Add%20product/offers.dart';
 import 'package:kealthy_admin/view/Add%20product/update_product.dart';
 // import 'package:kealthy_admin/view/add_category.dart';
 // import 'package:kealthy_admin/view/assign_da.dart';
@@ -12,32 +13,30 @@ class Homepage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final screenWidth = MediaQuery.of(context).size.width;
-    final containerWidth =
-        screenWidth / 4; 
+    final containerWidth = screenWidth / 4;
 
     return Scaffold(
       appBar: PreferredSize(
-        preferredSize:
-            const Size.fromHeight(100), 
+        preferredSize: const Size.fromHeight(100),
         child: AppBar(
-          automaticallyImplyLeading: false, 
-          backgroundColor: Colors.blue.shade900, 
+          automaticallyImplyLeading: false,
+          backgroundColor: Colors.blue.shade900,
           flexibleSpace: Container(
-            alignment: Alignment
-                .center, 
+            alignment: Alignment.center,
             child: const Text(
               'Home',
               style: TextStyle(
                 fontSize: 24,
                 color: Colors.white,
-                fontWeight: FontWeight.bold, 
+                fontWeight: FontWeight.bold,
               ),
             ),
           ),
         ),
       ),
       body: SingleChildScrollView(
-        child: Column(mainAxisAlignment: MainAxisAlignment.center,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Padding(
               padding: const EdgeInsets.all(16.0),
@@ -53,22 +52,12 @@ class Homepage extends ConsumerWidget {
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) =>  const AddProduct()),
+                        MaterialPageRoute(
+                            builder: (context) => const AddProduct()),
                       );
                     },
                   ),
-                  // _buildAnimationWithText(
-                  //   context,
-                  //   animationPath: 'lib/assets/animations/Animation - 1743750483780.json',
-                  //   width: containerWidth,
-                  //   label: 'Add Categories',
-                  //   onTap: () {
-                  //     Navigator.push(
-                  //       context,
-                  //       MaterialPageRoute(builder: (context) => const CategorySubcategoryPage()),
-                  //     );
-                  //   },
-                  // ),
+
                   // _buildAnimationWithText(
                   //   context,
                   //   animationPath: 'lib/assets/animations/Animation - 1743750483780.json',
@@ -83,13 +72,29 @@ class Homepage extends ConsumerWidget {
                   // ),
                   _buildAnimationWithText(
                     context,
-                    animationPath: 'lib/assets/animations/Animation - 1743049786469.json',
+                    animationPath:
+                        'lib/assets/animations/Animation - 1743049786469.json',
                     width: containerWidth,
                     label: 'Edit Products',
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => const UpdateProduct()),
+                        MaterialPageRoute(
+                            builder: (context) => const UpdateProduct()),
+                      );
+                    },
+                  ),
+                  _buildAnimationWithText(
+                    context,
+                    animationPath:
+                        'lib/assets/animations/Animation - 1750314085880.json',
+                    width: containerWidth,
+                    label: 'Offers',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => const OffersPage()),
                       );
                     },
                   ),
