@@ -117,7 +117,6 @@ class _UpdateProductState extends ConsumerState<UpdateProduct> {
       TextEditingController();
   final TextEditingController _expiryController = TextEditingController();
   final TextEditingController _bestBeforeController = TextEditingController();
-  final TextEditingController _typeController = TextEditingController();
   final TextEditingController _servingSizeController = TextEditingController();
 
   /// A helper function to show a message (SnackBar or Toast)
@@ -197,9 +196,6 @@ class _UpdateProductState extends ConsumerState<UpdateProduct> {
         final oldUrl = existingImages[i];
         if (oldUrl.isNotEmpty) {
           uploadedUrls.add(oldUrl);
-        } else {
-          // If there's no old URL, we might just skip or store an empty string
-          uploadedUrls.add('');
         }
       }
     }
@@ -374,7 +370,6 @@ class _UpdateProductState extends ConsumerState<UpdateProduct> {
         "Manufactured date": _manufacturedDateController.text,
         "Expiry": _expiryController.text,
         "Best Before": _bestBeforeController.text,
-        "Type": _typeController.text,
         "Serving size": _servingSizeController.text,
         "FSSAI": fssai,
 
@@ -502,54 +497,53 @@ class _UpdateProductState extends ConsumerState<UpdateProduct> {
                       spacing: 18,
                       runSpacing: 16,
                       alignment: WrapAlignment.center,
-                      children: List.generate(4, (index) {
-                        final labels = [
-                          'Front View',
-                          'Back View',
-                          'Canva image 1',
-                          'Canva image 2'
-                        ];
+                      children: List.generate(
+                        existingImages.where((e) => e.isNotEmpty).length == 1
+                            ? 1
+                            : 4,
+                        (index) {
+                          final labels = [
+                            'Front View',
+                            'Back View',
+                            'Canva image 1',
+                            'Canva image 2'
+                          ];
 
-                        Widget child;
-                        if (localImages[index] != null) {
-                          // Display memory bytes
-                          child = Image.memory(localImages[index]!,
-                              fit: BoxFit.cover);
-                        } else if (existingImages[index].isNotEmpty) {
-                          // Show doc's existing image from Firestore
-                          child = Image.network(
-                            existingImages[index],
-                            fit: BoxFit.cover,
-                          );
-                        } else {
-                          // No new or existing image
-                          child = const Icon(Icons.add_a_photo);
-                        }
+                          Widget child;
+                          if (localImages[index] != null) {
+                            child = Image.memory(localImages[index]!,
+                                fit: BoxFit.cover);
+                          } else if (existingImages[index].isNotEmpty) {
+                            child = Image.network(existingImages[index],
+                                fit: BoxFit.cover);
+                          } else {
+                            child = const Icon(Icons.add_a_photo);
+                          }
 
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              labels[index],
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            const SizedBox(height: 8),
-                            GestureDetector(
-                              onTap: () => _pickImage(index),
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[300],
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                height: screenWidth * 0.2,
-                                width: screenWidth * 0.23,
-                                child: child,
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                labels[index],
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold),
                               ),
-                            ),
-                          ],
-                        );
-                      }),
+                              InkWell(
+                                onTap: () => _pickImage(index),
+                                child: Container(
+                                  width: 250,
+                                  height: 250,
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: Colors.grey),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: child,
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
                     ),
 
                     const SizedBox(height: 24),

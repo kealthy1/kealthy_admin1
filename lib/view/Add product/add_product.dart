@@ -234,7 +234,6 @@ class _AddProductState extends ConsumerState<AddProduct> {
       List<String> imageUrls = await _uploadImages();
 
       final productData = {
-        // 🔹 Strings
         "Product Code": _productCodeController.text,
         "Vendor Name": _vendorNameController.text,
         "Brand Name": _brandNameController.text,
